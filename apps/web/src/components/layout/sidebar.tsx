@@ -101,7 +101,7 @@ const categoryNavItems: NavItem[] = [
   {
     id: 'market_maker',
     label: 'Market Maker',
-    labelCN: '量化/做市',
+    labelCN: '做市/量化',
     icon: <TrendingUp className="h-4 w-4" />,
     href: '/category/market_maker',
     category: 'market_maker',

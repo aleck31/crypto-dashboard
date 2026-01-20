@@ -8,14 +8,14 @@ export * from './source-config.js';
 export type ProjectCategory =
   | 'cex'           // 中心化交易所
   | 'dex'           // 去中心化交易所
-  | 'market_maker'  // 量化/做市
+  | 'market_maker'  // 做市/量化
   | 'payment'       // 支付
-  | 'layer1'        // 公链
-  | 'layer2'        // L2
+  | 'stablecoin'   // 稳定币
   | 'defi'          // DeFi 协议
   | 'wallet'        // 钱包
-  | 'infrastructure'// 基础设施
-  | 'stablecoin';   // 稳定币
+  | 'layer1'        // 公链
+  | 'layer2'        // L2
+  | 'infrastructure';// 基础设施
 
 // Project Status
 export type ProjectStatus = 'normal' | 'watch' | 'warning' | 'danger';

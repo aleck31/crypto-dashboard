@@ -15,7 +15,7 @@ import type {
 import { generateContentHash, calculateTTL } from '@crypto-dashboard/shared';
 import { BaseCollector } from './base.js';
 
-interface RSSItem {
+interface FeedItem {
   title: string;
   link?: string;
   description: string;
@@ -25,10 +25,17 @@ interface RSSItem {
 }
 
 /**
- * Simple RSS XML parser
+ * Detect feed format (RSS or Atom)
  */
-function parseRSSItems(xml: string): RSSItem[] {
-  const items: RSSItem[] = [];
+function isAtomFeed(xml: string): boolean {
+  return xml.includes('<feed') && xml.includes('xmlns="http://www.w3.org/2005/Atom"');
+}
+
+/**
+ * Parse RSS format items (<item> tags)
+ */
+function parseRSSItems(xml: string): FeedItem[] {
+  const items: FeedItem[] = [];
 
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   let match;
@@ -56,6 +63,86 @@ function parseRSSItems(xml: string): RSSItem[] {
   }
 
   return items;
+}
+
+/**
+ * Parse Atom format entries (<entry> tags)
+ */
+function parseAtomEntries(xml: string): FeedItem[] {
+  const items: FeedItem[] = [];
+
+  const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+  let match;
+
+  while ((match = entryRegex.exec(xml)) !== null) {
+    const entryXml = match[1];
+
+    const title = extractTag(entryXml, 'title');
+    // Atom uses <link href="..."/> attribute instead of <link>...</link>
+    const link = extractAtomLink(entryXml);
+    // Atom uses <summary> or <content> instead of <description>
+    const description = extractTag(entryXml, 'summary') || extractTag(entryXml, 'content');
+    // Atom uses <published> or <updated> instead of <pubDate>
+    const pubDate = extractTag(entryXml, 'published') || extractTag(entryXml, 'updated');
+    // Atom uses <author><name>...</name></author>
+    const author = extractAtomAuthor(entryXml);
+    // Atom uses <category term="..."/> attribute
+    const category = extractAtomCategory(entryXml);
+
+    if (title) {
+      items.push({
+        title: cleanHtml(title),
+        link,
+        description: cleanHtml(description || ''),
+        pubDate,
+        author,
+        category,
+      });
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Extract link from Atom format (<link href="..."/>)
+ */
+function extractAtomLink(xml: string): string | undefined {
+  // Match <link href="..." rel="alternate"/> or just <link href="..."/>
+  const linkRegex = /<link[^>]*href=["']([^"']+)["'][^>]*>/i;
+  const match = xml.match(linkRegex);
+  return match ? match[1] : undefined;
+}
+
+/**
+ * Extract author from Atom format (<author><name>...</name></author>)
+ */
+function extractAtomAuthor(xml: string): string | undefined {
+  const authorRegex = /<author[^>]*>[\s\S]*?<name>([^<]+)<\/name>[\s\S]*?<\/author>/i;
+  const match = xml.match(authorRegex);
+  return match ? match[1].trim() : undefined;
+}
+
+/**
+ * Extract category from Atom format (<category term="..."/>)
+ */
+function extractAtomCategory(xml: string): string | undefined {
+  const categoryRegex = /<category[^>]*term=["']([^"']+)["'][^>]*>/i;
+  const match = xml.match(categoryRegex);
+  return match ? match[1] : undefined;
+}
+
+/**
+ * Parse feed items (auto-detect RSS or Atom format)
+ */
+function parseFeedItems(xml: string): FeedItem[] {
+  if (isAtomFeed(xml)) {
+    console.log('Detected Atom feed format');
+    return parseAtomEntries(xml);
+  } else {
+    console.log('Detected RSS feed format');
+    return parseRSSItems(xml);
+  }
 }
 
 function extractTag(xml: string, tag: string): string | undefined {
@@ -108,7 +195,7 @@ export class RssCollector extends BaseCollector<RssConfig> {
       }
 
       const xml = await response.text();
-      const items = parseRSSItems(xml);
+      const items = parseFeedItems(xml);
 
       const maxItems = config.maxItems || 20;
       const now = new Date().toISOString();

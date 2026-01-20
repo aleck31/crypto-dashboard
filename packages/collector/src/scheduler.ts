@@ -3,7 +3,6 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import type { ProjectInfo, MarketInfo, SourceConfig, CollectorResult } from '@crypto-dashboard/shared';
-import { generateContentHash } from '@crypto-dashboard/shared';
 import {
   getEnabledSourceConfigs,
   initializeDefaultSources,
@@ -12,11 +11,6 @@ import {
   shouldCollect,
 } from './services/source-config.js';
 import { getCollector, isCollectorSupported } from './collectors/registry.js';
-
-// Legacy imports for backward compatibility
-import { collectCoinGeckoProjectInfo } from './sources/coingecko.js';
-import { collectDefiLlamaProjectInfo } from './sources/defillama.js';
-import { collectRSSMarketInfo } from './sources/rss.js';
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient, {
@@ -29,7 +23,6 @@ const sqsClient = new SQSClient({});
 // Environment variables
 const PROJECT_INFO_TABLE = process.env.PROJECT_INFO_TABLE_NAME || 'crypto-dashboard-project-info';
 const MARKET_INFO_TABLE = process.env.MARKET_INFO_TABLE_NAME || 'crypto-dashboard-market-info';
-const SOURCE_CONFIG_TABLE = process.env.SOURCE_CONFIG_TABLE_NAME;
 const INFO_QUEUE_URL = process.env.INFO_QUEUE_URL;
 
 interface SQSMessage {
@@ -206,57 +199,7 @@ async function collectFromSource(sourceConfig: SourceConfig): Promise<{
 }
 
 /**
- * Process and save ProjectInfo items (legacy function)
- */
-async function processProjectInfoItems(items: ProjectInfo[]): Promise<number> {
-  let savedCount = 0;
-  const batchSize = 10;
-
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const results = await Promise.all(
-      batch.map(async (info) => {
-        const saved = await saveProjectInfo(info);
-        if (saved) {
-          await sendToQueue({ type: 'project_info', infoId: info.id });
-          return true;
-        }
-        return false;
-      })
-    );
-    savedCount += results.filter(Boolean).length;
-  }
-
-  return savedCount;
-}
-
-/**
- * Process and save MarketInfo items (legacy function)
- */
-async function processMarketInfoItems(items: MarketInfo[]): Promise<number> {
-  let savedCount = 0;
-  const batchSize = 10;
-
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const results = await Promise.all(
-      batch.map(async (info) => {
-        const saved = await saveMarketInfo(info);
-        if (saved) {
-          await sendToQueue({ type: 'market_info', infoId: info.id });
-          return true;
-        }
-        return false;
-      })
-    );
-    savedCount += results.filter(Boolean).length;
-  }
-
-  return savedCount;
-}
-
-/**
- * Run collection using the new configurable system
+ * Run collection using the configurable source system
  */
 async function runConfigurableCollection(): Promise<{
   projectInfo: { collected: number; saved: number };
@@ -301,59 +244,6 @@ async function runConfigurableCollection(): Promise<{
 }
 
 /**
- * Run collection using the legacy hardcoded system
- */
-async function runLegacyCollection(): Promise<{
-  projectInfo: { collected: number; saved: number };
-  marketInfo: { collected: number; saved: number };
-}> {
-  const stats = {
-    projectInfo: { collected: 0, saved: 0 },
-    marketInfo: { collected: 0, saved: 0 },
-  };
-
-  // CoinGecko
-  try {
-    console.log('Collecting ProjectInfo from CoinGecko...');
-    const coinGeckoItems = await collectCoinGeckoProjectInfo();
-    stats.projectInfo.collected += coinGeckoItems.length;
-    console.log(`Collected ${coinGeckoItems.length} items from CoinGecko`);
-    const saved = await processProjectInfoItems(coinGeckoItems);
-    stats.projectInfo.saved += saved;
-  } catch (error) {
-    console.error('Error collecting from CoinGecko:', error);
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // DefiLlama
-  try {
-    console.log('Collecting ProjectInfo from DefiLlama...');
-    const defiLlamaItems = await collectDefiLlamaProjectInfo();
-    stats.projectInfo.collected += defiLlamaItems.length;
-    console.log(`Collected ${defiLlamaItems.length} items from DefiLlama`);
-    const saved = await processProjectInfoItems(defiLlamaItems);
-    stats.projectInfo.saved += saved;
-  } catch (error) {
-    console.error('Error collecting from DefiLlama:', error);
-  }
-
-  // RSS
-  try {
-    console.log('Collecting MarketInfo from RSS feeds...');
-    const rssItems = await collectRSSMarketInfo();
-    stats.marketInfo.collected += rssItems.length;
-    console.log(`Collected ${rssItems.length} items from RSS feeds`);
-    const saved = await processMarketInfoItems(rssItems);
-    stats.marketInfo.saved += saved;
-  } catch (error) {
-    console.error('Error collecting from RSS feeds:', error);
-  }
-
-  return stats;
-}
-
-/**
  * Main Lambda handler
  */
 export async function handler(
@@ -369,19 +259,8 @@ export async function handler(
     return handleSingleSourceCollection(event);
   }
 
-  let stats: {
-    projectInfo: { collected: number; saved: number };
-    marketInfo: { collected: number; saved: number };
-  };
-
-  // Use configurable system if SOURCE_CONFIG_TABLE is set
-  if (SOURCE_CONFIG_TABLE) {
-    console.log('Using configurable source system...');
-    stats = await runConfigurableCollection();
-  } else {
-    console.log('Using legacy hardcoded source system...');
-    stats = await runLegacyCollection();
-  }
+  // Run collection using configurable source system
+  const stats = await runConfigurableCollection();
 
   console.log('Data collection complete');
   console.log('Stats:', JSON.stringify(stats, null, 2));
