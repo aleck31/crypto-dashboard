@@ -1,0 +1,102 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next
+.open-next
+*.tsbuildinfo
+
+# IaC
+.sst
+cdk.out/
+cdk.context.json
+
+# Testing
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# Cache
+.cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+.stylelintcache
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# AWS
+.aws-sam/
+samconfig.toml
+
+# Secrets (never commit these)
+*.pem
+*.key
+credentials.json
+secrets.json
+.secrets
+
+# Terraform (if used)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# AI assistants
+.claude/
+.cursor/
+.aider*
+.continue/
+
+# Misc
+*.local
+.vercel
+.output

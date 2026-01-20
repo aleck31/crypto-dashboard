@@ -1,0 +1,30 @@
+{
+  "name": "crypto-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "sst dev --stage dev",
+    "dev:web": "sst dev --stage dev -- npm run dev --workspace @crypto-dashboard/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules .sst",
+    "deploy": "sst deploy --stage production",
+    "remove": "sst remove --stage dev",
+    "remove:prod": "sst remove --stage production"
+  },
+  "devDependencies": {
+    "sst": "3.17.25",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

@@ -1,0 +1,20 @@
+# CDK asset staging directory
+.cdk.staging/
+cdk.out/
+
+# CDK context (may contain account-specific info)
+cdk.context.json
+
+# Build output
+dist/
+
+# Parcel cache
+.parcel-cache/
+
+# TypeScript
+*.tsbuildinfo
+*.js
+*.d.ts
+
+# Keep these JS files
+!jest.config.js
